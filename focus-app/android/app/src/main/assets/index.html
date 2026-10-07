@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus 🎵</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #1a1a2e; color: white; text-align: center; padding: 20px; }
+  button { background: #e94560; color: white; border: none; padding: 12px 20px; margin: 5px; border-radius: 10px; font-size: 16px; }
+  audio { width: 100%; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <h1>🎓 Focus</h1>
+  <p>Musique de concentration</p>
+  <button onclick="document.getElementById('fichiers').click()">📁 Mes musiques</button>
+  <input type="file" id="fichiers" accept="audio/*" multiple style="display:none" onchange="chargerMusiques(event)">
+  <div id="liste"></div>
+  <audio id="lecteur" controls></audio>
+  <script>
+    function chargerMusiques(e) {
+      const liste = document.getElementById('liste');
+      liste.innerHTML = '';
+      for (const f of e.target.files) {
+        const b = document.createElement('button');
+        b.textContent = '▶️ ' + f.name;
+        b.onclick = () => {
+          const lecteur = document.getElementById('lecteur');
+          lecteur.src = URL.createObjectURL(f);
+          lecteur.play();
+        };
+        liste.appendChild(b);
+      }
+    }
+  </script>
+</body>
+</html>
