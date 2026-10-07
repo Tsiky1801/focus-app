@@ -4,7 +4,7 @@
     <application
         android:label="Focus"
         android:icon="@android:drawable/ic_media_play"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        android:theme="@android:style/Theme.Material.Light">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
