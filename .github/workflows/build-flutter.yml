@@ -1,0 +1,29 @@
+name: Build Flutter APK
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Create flutter project
+        run: |
+          flutter create --org com.example.focus_player focus_tmp
+          cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
+          cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
+          cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
+          cd focus_tmp && flutter pub get && flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-player
+          path: focus_tmp/build/app/outputs/flutter-apk/app-debug.apk

@@ -1,0 +1,16 @@
+name: focus_player
+description: Player de musique moderne
+publish_to: 'none'
+version: 1.0.0
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  on_audio_query: ^2.9.0
+  just_audio: ^0.9.40
+  permission_handler: ^11.3.0
+  shared_preferences: ^2.3.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
