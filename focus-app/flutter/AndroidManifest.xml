@@ -32,7 +32,7 @@
         </service>
 
         <receiver
-            android:name="androidx.media.session.MediaButtonReceiver"
+            android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON"/>

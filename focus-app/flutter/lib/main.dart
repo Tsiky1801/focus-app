@@ -9,10 +9,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  JustAudioBackground.init(
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
     androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
+    androidNotificationChannelName: 'Lecture musique',
     androidNotificationOngoing: true,
+    androidStopForegroundOnPause: false,
   );
   runApp(const FocusPlayer());
 }
@@ -155,10 +158,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _jouer(SongModel s) async {
-    setState(() => _enCours = s);
     try {
-      await _player.setFilePath(s.data);
-      _player.play();
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.file(s.data),
+          tag: MediaItem(
+            id: s.id.toString(),
+            title: s.title,
+            artist: s.artist ?? 'Inconnue',
+            album: s.album,
+            duration: (s.duration ?? 0) > 0
+                ? Duration(milliseconds: s.duration ?? 0)
+                : null,
+            artUri: (s.albumId ?? 0) > 0
+                ? Uri.parse('content://media/external/audio/albumart/${s.albumId}')
+                : null,
+          ),
+        ),
+      );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -169,6 +186,9 @@ class _HomePageState extends State<HomePage> {
       }
       return;
     }
+    if (!mounted) return;
+    setState(() => _enCours = s);
+    _player.play().ignore();
     _compteur[s.id.toString()] = (_compteur[s.id.toString()] ?? 0) + 1;
     await _prefs?.setString('compteur', jsonEncode(_compteur));
     if (mounted) setState(() {});
@@ -681,7 +701,7 @@ class _LecteurPageState extends State<LecteurPage> {
           _drag = false;
           _decided = false;
           if (!mounted) return;
-          if (_dy > 140) {
+          if (_dy > 100) {
             Navigator.pop(context);
           } else if (_dy > 0) {
             setState(() => _dy = 0);
