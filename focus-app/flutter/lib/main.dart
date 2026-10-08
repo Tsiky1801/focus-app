@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _partager(SongModel s) async {
     await SharePlus.instance.share(ShareParams(
-      files: [XFile.fromPath(s.data)],
+      files: [XFile(s.data)],
       text: '${s.title} — ${s.artist ?? "Inconnue"} · écouté sur Focus Player',
     ));
   }
@@ -278,8 +278,9 @@ class _HomePageState extends State<HomePage> {
           artworkWidth: taille,
           artworkHeight: taille,
           nullArtworkWidget: Container(
-            decoration: const LinearGradient(colors: [rose, violet])
-                as Gradient as Decoration? ?? const BoxDecoration(),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [rose, violet]),
+            ),
             child: Icon(Icons.music_note, color: Colors.white, size: taille / 2),
           ),
         ),
