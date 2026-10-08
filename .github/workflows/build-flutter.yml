@@ -16,6 +16,7 @@ jobs:
 
       - name: Create flutter project
         run: |
+          yes | sdkmanager "platforms;android-33" >/dev/null || true
           flutter create --org com.example.focus_player focus_tmp
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
