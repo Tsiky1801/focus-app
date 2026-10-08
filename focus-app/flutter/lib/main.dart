@@ -155,7 +155,7 @@ class _HomePageState extends State<HomePage> {
             const Text('Focus Player',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            Text('version 1.1.0',
+            Text('version 1.1.1',
                 style: TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 16),
             Container(height: 1, color: Colors.white12),

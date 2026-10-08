@@ -19,6 +19,7 @@ jobs:
       - name: Build APK
         working-directory: focus-app/android
         run: |
+          mkdir -p "$HOME/.android" && cp ../flutter/debug.keystore "$HOME/.android/debug.keystore"
           gradle wrapper --gradle-version 8.5
           ./gradlew assembleDebug
 
