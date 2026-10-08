@@ -16,7 +16,7 @@ jobs:
 
       - name: Create flutter project
         run: |
-          yes | sdkmanager "platforms;android-33" >/dev/null || true
+          yes | sdkmanager "platforms;android-34" >/dev/null || true
           flutter create --org com.example.focus_player focus_tmp
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
@@ -34,6 +34,7 @@ jobs:
             sed -i "s/^android {/android {\n    namespace \"$NS\"\n    compileOptions {\n      sourceCompatibility JavaVersion.VERSION_17\n      targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n      jvmTarget = '17'\n    }/" "$g"
             sed -i 's/ package="[^"]*"//' "$m"
             echo "namespace ajouté: $NS → $g"
+            sed -i 's/compileSdkVersion 3[0-3]/compileSdkVersion 34/' "$g" && echo "compileSdk → 34: $g"
           done
           flutter build apk --debug
 
