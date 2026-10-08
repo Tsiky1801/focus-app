@@ -39,11 +39,12 @@ jobs:
           done
           flutter build apk --debug
           # Re-signe avec le keystore stable du créateur (sinon chaque run a une clé différente)
-          APK=focus_tmp/build/app/outputs/flutter-apk/app-debug.apk
+          APK="$GITHUB_WORKSPACE/focus_tmp/build/app/outputs/flutter-apk/app-debug.apk"
+          KS="$GITHUB_WORKSPACE/focus-app/flutter/debug.keystore"
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           BT=$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)
           "$BT/zipalign" -f 4 "$APK" "$APK".aligned
-          "$BT/apksigner" sign --ks focus-app/flutter/debug.keystore \
+          "$BT/apksigner" sign --ks "$KS" \
             --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android \
             --out "$APK" "$APK".aligned
           rm -f "$APK".aligned
