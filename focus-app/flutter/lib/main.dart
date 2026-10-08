@@ -5,12 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  String? gAudioErreur;
+  JustAudioPlatform? plateformeAvant;
+  try {
+    plateformeAvant = JustAudioPlatform.instance;
+  } catch (_) {}
   try {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
@@ -18,11 +25,17 @@ Future<void> main() async {
       androidNotificationOngoing: true,
       androidStopForegroundOnPause: false,
     ).timeout(const Duration(seconds: 8));
-  } catch (_) {
-    // Audio indisponible : l'application doit démarrer quand même
+  } catch (e) {
+    gAudioErreur = 'Audio arrière-plan indisponible : $e';
+    try {
+      JustAudioPlatform.instance = plateformeAvant!;
+    } catch (_) {}
   }
+  audioErreur = gAudioErreur;
   runApp(const FocusPlayer());
 }
+
+String? audioErreur;
 
 const Color rose = Color(0xFFFF4081);
 const Color violet = Color(0xFF9C27B0);
@@ -156,6 +169,30 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _chargement = false);
   }
 
+  void _montrerErreur(String titre, Object e) {
+    final texte = '$titre : $e';
+    try {
+      Clipboard.setData(ClipboardData(text: texte));
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(texte,
+          maxLines: 5, overflow: TextOverflow.ellipsis),
+      backgroundColor: widget.accent,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 15),
+      action: SnackBarAction(
+        label: 'Copier',
+        textColor: Colors.white,
+        onPressed: () {
+          try {
+            Clipboard.setData(ClipboardData(text: texte));
+          } catch (_) {}
+        },
+      ),
+    ));
+  }
+
   int get _idx {
     if (_enCours == null) return -1;
     return _all.indexWhere((s) => s.id == _enCours!.id);
@@ -180,26 +217,14 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Impossible de lire ce fichier'),
-          backgroundColor: widget.accent,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+    } catch (e) {
+      _montrerErreur('Lecture impossible', e);
       return;
     }
     if (!mounted) return;
     setState(() => _enCours = s);
     _player.play().catchError((Object e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur de lecture : $e'),
-          backgroundColor: widget.accent,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
+      _montrerErreur('Erreur de lecture', e);
     });
     _compteur[s.id.toString()] = (_compteur[s.id.toString()] ?? 0) + 1;
     await _prefs?.setString('compteur', jsonEncode(_compteur));
@@ -524,6 +549,39 @@ class _HomePageState extends State<HomePage> {
         context, MaterialPageRoute(builder: (_) => LecteurPage(h: this)));
   }
 
+  Widget _banniereAudio() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFB00020),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(audioErreur ?? '',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () {
+              try {
+                Clipboard.setData(ClipboardData(text: audioErreur ?? ''));
+              } catch (_) {}
+            },
+            child: const Text('Copier', style: TextStyle(color: Colors.white)),
+          ),
+          IconButton(
+            tooltip: 'Masquer',
+            icon: const Icon(Icons.close, color: Colors.white, size: 18),
+            onPressed: () => setState(() => audioErreur = null),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final populaires = [..._all]
@@ -542,7 +600,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               const Text('Focus Player',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-              Text('Créé par Tsiky · v1.2',
+              Text('Créé par Tsiky · v1.3',
                   style: TextStyle(fontSize: 12, color: widget.accent.withOpacity(.9))),
             ],
           ),
@@ -579,15 +637,22 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        body: TabBarView(children: [
-          _liste(_all, 'Aucune musique trouvée\nsur ton téléphone',
-              Icons.library_music_outlined),
-          _liste(fav, 'Aucun favori pour l\'instant\nTouche ❤️ sur une chanson',
-              Icons.favorite_border),
-          _liste(populaires.take(20).toList(),
-              'Les chansons les plus écoutées\napparaîtront ici',
-              Icons.trending_up),
-        ]),
+        body: Column(
+          children: [
+            if (audioErreur != null) _banniereAudio(),
+            Expanded(
+              child: TabBarView(children: [
+                _liste(_all, 'Aucune musique trouvée\nsur ton téléphone',
+                    Icons.library_music_outlined),
+                _liste(fav, 'Aucun favori pour l\'instant\nTouche ❤️ sur une chanson',
+                    Icons.favorite_border),
+                _liste(populaires.take(20).toList(),
+                    'Les chansons les plus écoutées\napparaîtront ici',
+                    Icons.trending_up),
+              ]),
+            ),
+          ],
+        ),
         bottomNavigationBar: _barre(),
       ),
     );
