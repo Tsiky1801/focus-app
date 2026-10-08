@@ -33,6 +33,7 @@ jobs:
             [ -z "$NS" ] && continue
             sed -i "s/^android {/android {\n    namespace \"$NS\"\n    compileOptions {\n      sourceCompatibility JavaVersion.VERSION_17\n      targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n      jvmTarget = '17'\n    }/" "$g"
             sed -i 's/ package="[^"]*"//' "$m"
+            sed -i -E 's/compileSdkVersion[[:space:]]+[0-9]+/compileSdkVersion 35/' "$g"
             echo "namespace ajouté: $NS → $g"
             sed -i 's/compileSdkVersion 3[0-3]/compileSdkVersion 34/' "$g" && echo "compileSdk → 34: $g"
           done
