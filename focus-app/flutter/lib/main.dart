@@ -11,12 +11,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
-    androidNotificationChannelName: 'Lecture musique',
-    androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
-  );
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
+      androidNotificationChannelName: 'Lecture musique',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: false,
+    ).timeout(const Duration(seconds: 8));
+  } catch (_) {
+    // Audio indisponible : l'application doit démarrer quand même
+  }
   runApp(const FocusPlayer());
 }
 
@@ -188,7 +192,15 @@ class _HomePageState extends State<HomePage> {
     }
     if (!mounted) return;
     setState(() => _enCours = s);
-    _player.play().ignore();
+    _player.play().catchError((Object e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erreur de lecture : $e'),
+          backgroundColor: widget.accent,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    });
     _compteur[s.id.toString()] = (_compteur[s.id.toString()] ?? 0) + 1;
     await _prefs?.setString('compteur', jsonEncode(_compteur));
     if (mounted) setState(() {});

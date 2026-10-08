@@ -24,9 +24,14 @@ jobs:
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
           # audio_service exige que MainActivity étende AudioServiceActivity (liaison service ↔ moteur Flutter)
           MF=$(find focus_tmp/android/app/src/main/kotlin -name MainActivity.kt | head -1)
+          echo "=== MainActivity avant patch ==="
+          cat "$MF"
           sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MF"
           sed -i 's/: FlutterActivity()/: AudioServiceActivity()/' "$MF"
-          grep -q AudioServiceActivity "$MF"
+          sed -i 's/extends FlutterActivity/extends AudioServiceActivity/' "$MF"
+          echo "=== MainActivity après patch ==="
+          cat "$MF"
+          grep -q ": AudioServiceActivity()" "$MF" || grep -q "extends AudioServiceActivity" "$MF"
           cd focus_tmp && flutter pub get
           # AGP 8 (Flutter récent) exige "namespace" — corrige les vieux plugins qui n'en ont pas
           find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 3 -type d -name android | while read -r d; do
