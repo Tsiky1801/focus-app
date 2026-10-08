@@ -20,7 +20,21 @@ jobs:
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
-          cd focus_tmp && flutter pub get && flutter build apk --debug
+          cd focus_tmp && flutter pub get
+          # AGP 8 (Flutter récent) exige "namespace" — corrige les vieux plugins qui n'en ont pas
+          find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 3 -type d -name android | while read -r d; do
+            g="$d/build.gradle"
+            [ -f "$g" ] || continue
+            grep -Eq '^[[:space:]]*namespace[[:space:]]' "$g" && continue
+            m="$d/src/main/AndroidManifest.xml"
+            [ -f "$m" ] || continue
+            NS=$(grep -o 'package="[^"]*"' "$m" | head -1 | sed 's/package="//;s/"//')
+            [ -z "$NS" ] && continue
+            sed -i "s/^android {/android {\n    namespace \"$NS\"/" "$g"
+            sed -i 's/ package="[^"]*"//' "$m"
+            echo "namespace ajouté: $NS → $g"
+          done
+          cd focus_tmp && flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
