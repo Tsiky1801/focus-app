@@ -85,9 +85,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _ligne(SongModel s) => ListTile(
-        leading: CircleAvatar(
-          child: const Icon(Icons.music_note),
-          onBackgroundImageError: (_, __) {},
+        leading: const CircleAvatar(
+          child: Icon(Icons.music_note),
         ),
         title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(s.artist ?? "Inconnu"),
