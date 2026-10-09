@@ -24,6 +24,10 @@ jobs:
           PLUGIN=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "on_audio_query_android-*" | head -1)/android/build.gradle
           if [ -f "$PLUGIN" ]; then
             grep -q "namespace" "$PLUGIN" || sed -i "s/^android {/android {\n    namespace 'com.example.focus_player.onaudio'\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }/" "$PLUGIN"
+            PMANIFEST=$(dirname "$PLUGIN")/src/main/AndroidManifest.xml
+            if [ -f "$PMANIFEST" ]; then
+              sed -i 's/ package="com.lucasjosino.on_audio_query"//' "$PMANIFEST"
+            fi
             echo "--- plugin patch ---"
             head -20 "$PLUGIN"
           fi
