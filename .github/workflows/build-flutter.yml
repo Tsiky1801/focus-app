@@ -16,8 +16,9 @@ jobs:
 
       - name: Create flutter project
         run: |
-          flutter create --org com.example.focus_player focus_tmp
+          flutter create --platforms android --org com.example.focus_player focus_tmp
           sed -i "s/id 'com.android.application' version '[^']*'/id 'com.android.application' version '7.4.2'/" focus_tmp/android/build.gradle
+          ls focus_tmp/android
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
