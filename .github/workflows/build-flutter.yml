@@ -17,8 +17,16 @@ jobs:
       - name: Create flutter project
         run: |
           flutter create --platforms android --org com.example.focus_player focus_tmp
-          sed -i "s/id 'com.android.application' version '[^']*'/id 'com.android.application' version '7.4.2'/" focus_tmp/android/build.gradle
           ls focus_tmp/android
+          if [ -f focus_tmp/android/build.gradle.kts ]; then
+            sed -i 's/id("com.android.application") version "[^"]*"/id("com.android.application") version "7.4.2"/' focus_tmp/android/build.gradle.kts
+          elif [ -f focus_tmp/android/build.gradle ]; then
+            sed -i "s/id 'com.android.application' version '[^']*'/id 'com.android.application' version '7.4.2'/" focus_tmp/android/build.gradle
+          else
+            echo "NO BUILD FILE FOUND"
+            find focus_tmp -name "build.gradle*"
+            exit 1
+          fi
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
