@@ -13,7 +13,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  String? gAudioErreur;
+  runApp(const FocusPlayer());
+}
+
+String? audioErreur;
+
+Future<void> _initAudioArrierePlan() async {
   JustAudioPlatform? plateformeAvant;
   try {
     plateformeAvant = JustAudioPlatform.instance;
@@ -23,19 +28,15 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
       androidNotificationChannelName: 'Lecture musique',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      androidStopForegroundOnPause: false,
     ).timeout(const Duration(seconds: 8));
   } catch (e) {
-    gAudioErreur = 'Audio arrière-plan indisponible : $e';
+    audioErreur = 'Audio arrière-plan indisponible : $e';
     try {
       JustAudioPlatform.instance = plateformeAvant!;
     } catch (_) {}
   }
-  audioErreur = gAudioErreur;
-  runApp(const FocusPlayer());
 }
-
-String? audioErreur;
 
 const Color rose = Color(0xFFFF4081);
 const Color violet = Color(0xFF9C27B0);
@@ -102,7 +103,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final OnAudioQuery _audioQuery = OnAudioQuery();
-  final AudioPlayer _player = AudioPlayer();
+  late final AudioPlayer _player;
+  bool _pret = false;
   SharedPreferences? _prefs;
   List<SongModel> _all = [];
   Set<String> _favoris = {};
@@ -123,15 +125,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _sPos = _player.positionStream.listen((d) {
-      if (mounted) setState(() => _pos = d);
-    });
-    _sDur = _player.durationStream.listen((d) {
-      if (mounted) setState(() => _dur = d ?? Duration.zero);
-    });
-    _sDone = _player.processingStateStream.listen((st) {
-      if (st == ProcessingState.completed) _aLaFin();
-    });
     _initialiser();
   }
 
@@ -140,7 +133,7 @@ class _HomePageState extends State<HomePage> {
     _sPos?.cancel();
     _sDur?.cancel();
     _sDone?.cancel();
-    _player.dispose();
+    if (_pret) _player.dispose();
     super.dispose();
   }
 
@@ -155,6 +148,19 @@ class _HomePageState extends State<HomePage> {
     _melanger = p.getBool('melanger') ?? false;
     _notifActive = p.getBool('notif') ?? true;
     _repeat = p.getString('repeat') ?? 'off';
+    // Initialise l'audio d'arrière-plan, puis crée le lecteur (évite tout écran blanc)
+    await _initAudioArrierePlan();
+    _player = AudioPlayer();
+    _sPos = _player.positionStream.listen((d) {
+      if (mounted) setState(() => _pos = d);
+    });
+    _sDur = _player.durationStream.listen((d) {
+      if (mounted) setState(() => _dur = d ?? Duration.zero);
+    });
+    _sDone = _player.processingStateStream.listen((st) {
+      if (st == ProcessingState.completed) _aLaFin();
+    });
+    if (mounted) setState(() => _pret = true);
     await _charger();
   }
 
@@ -681,6 +687,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_pret) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF101018),
+        body: Center(child: CircularProgressIndicator(color: rose)),
+      );
+    }
     final populaires = [..._all]
       ..sort((a, b) => (_compteur[b.id.toString()] ?? 0)
           .compareTo(_compteur[a.id.toString()] ?? 0));
