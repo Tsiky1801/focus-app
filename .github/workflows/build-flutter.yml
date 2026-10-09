@@ -25,6 +25,7 @@ jobs:
               sed -i "s/\(id 'org.jetbrains.kotlin.android' version '\)[^']*'/\11.9.24'/" "$f"
             fi
           done
+          sed -i 's|distributionUrl=.*|distributionUrl=https://services.gradle.org/distributions/gradle-7.6.4-all.zip|' focus_tmp/android/gradle/wrapper/gradle-wrapper.properties
           grep -rn "com.android.application" focus_tmp/android --include="*.kts" --include="*.gradle" || true
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
