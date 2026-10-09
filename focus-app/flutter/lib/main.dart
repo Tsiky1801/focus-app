@@ -23,7 +23,7 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
       androidNotificationChannelName: 'Lecture musique',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
     ).timeout(const Duration(seconds: 8));
   } catch (e) {
     gAudioErreur = 'Audio arrière-plan indisponible : $e';
@@ -109,6 +109,7 @@ class _HomePageState extends State<HomePage> {
   Map<String, int> _compteur = {};
   SongModel? _enCours;
   bool _chargement = true;
+  String _requete = '';
   bool _autoSuivant = true;
   bool _melanger = false;
   bool _notifActive = true;
@@ -419,6 +420,77 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _ongletRecherche() {
+    if (_chargement) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: rose),
+            SizedBox(height: 16),
+            Text('Lecture de ta musique…', style: TextStyle(color: Colors.white54)),
+          ],
+        ),
+      );
+    }
+    final q = _requete.trim().toLowerCase();
+    final resultats = q.isEmpty
+        ? _all
+        : _all
+            .where((s) =>
+                s.title.toLowerCase().contains(q) ||
+                (s.artist ?? '').toLowerCase().contains(q) ||
+                (s.album ?? '').toLowerCase().contains(q))
+            .toList();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+          child: TextField(
+            style: const TextStyle(color: Colors.white),
+            onChanged: (v) => setState(() => _requete = v),
+            decoration: InputDecoration(
+              hintText: '🔍 Rechercher un titre, un artiste, un album…',
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: const Color(0xFF20202C),
+              prefixIcon: const Icon(Icons.search, color: Colors.white54),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        if (q.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '${resultats.length} résultat${resultats.length > 1 ? 's' : ''} pour « $_requete »',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+        Expanded(
+          child: resultats.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.search_off, size: 64, color: Colors.white24),
+                      const SizedBox(height: 14),
+                      Text('Aucun résultat pour « $_requete »',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white54, fontSize: 15)),
+                    ],
+                  ),
+                )
+              : ListView(children: resultats.map(_ligne).toList()),
+        ),
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
   Widget _signature() {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 20),
@@ -523,11 +595,36 @@ class _HomePageState extends State<HomePage> {
                   stream: _player.playerStateStream,
                   builder: (c, st) {
                     final enLecture = st.data?.playing ?? false;
-                    return IconButton(
-                      iconSize: 36,
-                      icon: Icon(enLecture ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white),
-                      onPressed: enLecture ? _player.pause : _player.play,
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Mélanger',
+                          icon: Icon(Icons.shuffle,
+                              color: _melanger ? widget.accent : Colors.white70,
+                              size: 22),
+                          onPressed: () => _setMelanger(!_melanger),
+                        ),
+                        IconButton(
+                          tooltip: 'Répéter',
+                          icon: Icon(
+                            _repeat == 'one' ? Icons.repeat_one : Icons.repeat,
+                            color: _repeat != 'off'
+                                ? widget.accent
+                                : Colors.white70,
+                            size: 22,
+                          ),
+                          onPressed: () => _setRepeat(_repeat == 'off'
+                              ? 'all'
+                              : (_repeat == 'all' ? 'one' : 'off')),
+                        ),
+                        IconButton(
+                          iconSize: 36,
+                          icon: Icon(enLecture ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white),
+                          onPressed: enLecture ? _player.pause : _player.play,
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -590,7 +687,7 @@ class _HomePageState extends State<HomePage> {
     final fav = _all.where((s) => _favoris.contains(s.id.toString())).toList();
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           elevation: 0,
@@ -632,6 +729,7 @@ class _HomePageState extends State<HomePage> {
             unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(icon: Icon(Icons.library_music_outlined), text: 'Toutes'),
+              Tab(icon: Icon(Icons.search), text: 'Recherche'),
               Tab(icon: Icon(Icons.favorite), text: 'Favoris'),
               Tab(icon: Icon(Icons.trending_up), text: 'Plus jouées'),
             ],
@@ -644,6 +742,7 @@ class _HomePageState extends State<HomePage> {
               child: TabBarView(children: [
                 _liste(_all, 'Aucune musique trouvée\nsur ton téléphone',
                     Icons.library_music_outlined),
+                _ongletRecherche(),
                 _liste(fav, 'Aucun favori pour l\'instant\nTouche ❤️ sur une chanson',
                     Icons.favorite_border),
                 _liste(populaires.take(20).toList(),
