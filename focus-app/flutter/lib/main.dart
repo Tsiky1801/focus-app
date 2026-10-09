@@ -105,6 +105,8 @@ class _HomePageState extends State<HomePage> {
   final OnAudioQuery _audioQuery = OnAudioQuery();
   late final AudioPlayer _player;
   bool _pret = false;
+  final DraggableScrollableController _feuilleCtrl =
+      DraggableScrollableController();
   SharedPreferences? _prefs;
   List<SongModel> _all = [];
   Set<String> _favoris = {};
@@ -134,6 +136,7 @@ class _HomePageState extends State<HomePage> {
     _sDur?.cancel();
     _sDone?.cancel();
     if (_pret) _player.dispose();
+    _feuilleCtrl.dispose();
     super.dispose();
   }
 
@@ -747,24 +750,382 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        body: Column(
+        body: Stack(
           children: [
-            if (audioErreur != null) _banniereAudio(),
-            Expanded(
-              child: TabBarView(children: [
-                _liste(_all, 'Aucune musique trouvée\nsur ton téléphone',
-                    Icons.library_music_outlined),
-                _ongletRecherche(),
-                _liste(fav, 'Aucun favori pour l\'instant\nTouche ❤️ sur une chanson',
-                    Icons.favorite_border),
-                _liste(populaires.take(20).toList(),
-                    'Les chansons les plus écoutées\napparaîtront ici',
-                    Icons.trending_up),
-              ]),
+            Column(
+              children: [
+                if (audioErreur != null) _banniereAudio(),
+                Expanded(
+                  child: TabBarView(children: [
+                    _liste(_all, 'Aucune musique trouvée\nsur ton téléphone',
+                        Icons.library_music_outlined),
+                    _ongletRecherche(),
+                    _liste(fav, 'Aucun favori pour l\'instant\nTouche ❤️ sur une chanson',
+                        Icons.favorite_border),
+                    _liste(populaires.take(20).toList(),
+                        'Les chansons les plus écoutées\napparaîtront ici',
+                        Icons.trending_up),
+                  ]),
+                ),
+              ],
             ),
+            if (_enCours != null) _feuilleLecteur(),
           ],
         ),
-        bottomNavigationBar: _barre(),
+      ),
+    );
+  }
+
+  // -------------------------------------------------- lecteur ajustable
+  Widget _feuilleLecteur() {
+    return DraggableScrollableSheet(
+      controller: _feuilleCtrl,
+      minChildSize: 0.13,
+      initialChildSize: 0.13,
+      maxChildSize: 0.96,
+      snap: true,
+      snapSizes: const [0.13, 0.96],
+      builder: (context, controller) => _contenuLecteur(controller),
+    );
+  }
+
+  void _agrandirLecteur() {
+    if (_feuilleCtrl.isAttached) {
+      _feuilleCtrl.animateTo(0.96,
+          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+    }
+  }
+
+  void _reduireLecteur() {
+    if (_feuilleCtrl.isAttached) {
+      _feuilleCtrl.animateTo(0.13,
+          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+    }
+  }
+
+  Widget _contenuLecteur(ScrollController controller) {
+    final s = _enCours!;
+    final accent = widget.accent;
+    final favori = _favoris.contains(s.id.toString());
+    final ms = _dur.inMilliseconds;
+    final ps = _pos.inMilliseconds;
+    final maxMs = ms > 0 ? ms : (ps > 0 ? ps + 1000 : 1);
+    final val = ps.clamp(0, maxMs).toDouble();
+
+    return Material(
+      color: carte,
+      elevation: 12,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      clipBehavior: Clip.antiAlias,
+      child: ListView(
+        controller: controller,
+        padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
+        children: [
+          // ---- en-tête compact (visible en mode réduit) ----
+          GestureDetector(
+            onTap: _agrandirLecteur,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [accent, violet]),
+              ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _reduireLecteur,
+                    child: const SizedBox(
+                      height: 18,
+                      child: Center(
+                        child: SizedBox(
+                          width: 42,
+                          height: 4,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white54,
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(2)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 8, 10),
+                    child: Row(
+                      children: [
+                        _pochette(s, 46),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                              Text(s.artist ?? 'Inconnue',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        StreamBuilder<PlayerState>(
+                          stream: _player.playerStateStream,
+                          builder: (c, st) {
+                            final enLecture = st.data?.playing ?? false;
+                            return IconButton(
+                              iconSize: 38,
+                              icon: Icon(
+                                  enLecture
+                                      ? Icons.pause
+                                      : Icons.play_arrow,
+                                  color: Colors.white),
+                              onPressed:
+                                  enLecture ? _player.pause : _player.play,
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.skip_next, color: Colors.white),
+                          onPressed: _suivant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ---- corps plein écran ----
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+            child: Column(
+              children: [
+                Center(
+                  child: SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: QueryArtworkWidget(
+                        controller: _audioQuery,
+                        id: s.id,
+                        type: ArtworkType.AUDIO,
+                        artworkBorder: BorderRadius.circular(26),
+                        artworkWidth: 260,
+                        artworkHeight: 260,
+                        nullArtworkWidget: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(colors: [rose, violet]),
+                          ),
+                          child: const Icon(Icons.music_note,
+                              color: Colors.white, size: 100),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Text(s.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 21)),
+                const SizedBox(height: 4),
+                Text(s.artist ?? 'Inconnue',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70, fontSize: 15)),
+                const SizedBox(height: 14),
+                SliderTheme(
+                  data: const SliderThemeData(
+                    trackHeight: 4,
+                    thumbShape:
+                        RoundSliderThumbShape(enabledThumbRadius: 7),
+                    overlayShape:
+                        RoundSliderOverlayShape(overlayRadius: 14),
+                    activeTrackColor: Colors.white,
+                    inactiveTrackColor: Colors.white24,
+                    thumbColor: Colors.white,
+                    overlayColor: Colors.white24,
+                  ),
+                  child: Slider(
+                    value: val,
+                    min: 0,
+                    max: maxMs.toDouble(),
+                    onChanged: (v) =>
+                        _player.seek(Duration(milliseconds: v.round())),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_fmt(_pos),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12)),
+                    Text(_fmt(_dur),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                StreamBuilder<PlayerState>(
+                  stream: _player.playerStateStream,
+                  builder: (c, st) {
+                    final enLecture = st.data?.playing ?? false;
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _rectBtn(
+                            icon: Icons.skip_previous,
+                            label: 'Précédent',
+                            onTap: _precedent,
+                            accent: accent,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: _rectBtn(
+                            icon: enLecture ? Icons.pause : Icons.play_arrow,
+                            label: enLecture ? 'Pause' : 'Lecture',
+                            onTap: enLecture ? _player.pause : _player.play,
+                            accent: accent,
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _rectBtn(
+                            icon: Icons.skip_next,
+                            label: 'Suivant',
+                            onTap: _suivant,
+                            accent: accent,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _rectBtn(
+                        icon: Icons.favorite,
+                        label: favori ? 'Favori' : 'Ajouter',
+                        onTap: () => _basculerFavori(s),
+                        accent: accent,
+                        actif: favori,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _rectBtn(
+                        icon: Icons.shuffle,
+                        label: 'Mélanger',
+                        onTap: () => _setMelanger(!_melanger),
+                        accent: accent,
+                        actif: _melanger,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _rectBtn(
+                        icon:
+                            _repeat == 'one' ? Icons.repeat_one : Icons.repeat,
+                        label: _repeat == 'off'
+                            ? 'Répéter'
+                            : (_repeat == 'all' ? 'Tout' : 'Une'),
+                        onTap: () => _setRepeat(_repeat == 'off'
+                            ? 'all'
+                            : (_repeat == 'all' ? 'one' : 'off')),
+                        accent: accent,
+                        actif: _repeat != 'off',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _rectBtn(
+                  icon: Icons.share,
+                  label: 'Partager le son',
+                  onTap: () => _partager(s),
+                  accent: accent,
+                ),
+                const SizedBox(height: 10),
+                _rectBtn(
+                  icon: Icons.keyboard_arrow_down,
+                  label: 'Réduire',
+                  onTap: _reduireLecteur,
+                  accent: accent,
+                ),
+                const SizedBox(height: 12),
+                Text('Créé par $auteur',
+                    style:
+                        const TextStyle(color: Colors.white38, fontSize: 11.5)),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rectBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color accent,
+    bool filled = false,
+    bool actif = false,
+  }) {
+    return Material(
+      color: filled
+          ? accent
+          : (actif ? accent.withOpacity(.2) : Colors.white10),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          height: 58,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: filled
+                    ? Colors.transparent
+                    : (actif ? accent : Colors.white24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 24,
+                  color: filled
+                      ? Colors.white
+                      : (actif ? accent : Colors.white70)),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: filled
+                          ? Colors.white
+                          : (actif ? accent : Colors.white54))),
+            ],
+          ),
+        ),
       ),
     );
   }
