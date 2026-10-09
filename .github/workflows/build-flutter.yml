@@ -17,20 +17,17 @@ jobs:
       - name: Create flutter project
         run: |
           flutter create --platforms android --org com.example.focus_player focus_tmp
-          for f in focus_tmp/android/build.gradle.kts focus_tmp/android/settings.gradle.kts focus_tmp/android/build.gradle focus_tmp/android/settings.gradle; do
-            if [ -f "$f" ]; then
-              sed -i 's/\(id("com.android.application") version "\)[^"]*"/\17.4.2"/' "$f"
-              sed -i "s/\(id 'com.android.application' version '\)[^']*'/\17.4.2'/" "$f"
-              sed -i 's/\(id("org.jetbrains.kotlin.android") version "\)[^"]*"/\11.9.24"/' "$f"
-              sed -i "s/\(id 'org.jetbrains.kotlin.android' version '\)[^']*'/\11.9.24'/" "$f"
-            fi
-          done
-          sed -i 's|distributionUrl=.*|distributionUrl=https://services.gradle.org/distributions/gradle-7.6.4-all.zip|' focus_tmp/android/gradle/wrapper/gradle-wrapper.properties
-          grep -rn "com.android.application" focus_tmp/android --include="*.kts" --include="*.gradle" || true
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
-          cd focus_tmp && flutter pub get && flutter build apk --debug --split-per-abi
+          cd focus_tmp && flutter pub get
+          PLUGIN=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "on_audio_query_android-*" | head -1)/android/build.gradle
+          if [ -f "$PLUGIN" ]; then
+            grep -q "namespace" "$PLUGIN" || sed -i "s/^android {/android {\n    namespace 'com.example.focus_player.onaudio'/" "$PLUGIN"
+            echo "--- plugin patch ---"
+            head -20 "$PLUGIN"
+          fi
+          flutter build apk --debug --split-per-abi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
