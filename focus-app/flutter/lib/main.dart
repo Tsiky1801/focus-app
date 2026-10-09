@@ -27,7 +27,7 @@ Future<void> _initAudioArrierePlan() async {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
       androidNotificationChannelName: 'Lecture musique',
-      androidNotificationOngoing: true,
+      androidNotificationOngoing: false,
       androidStopForegroundOnPause: false,
     ).timeout(const Duration(seconds: 8));
   } catch (e) {
