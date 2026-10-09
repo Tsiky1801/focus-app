@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,6 +13,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  String? gAudioErreur;
+  JustAudioPlatform? plateformeAvant;
+  try {
+    plateformeAvant = JustAudioPlatform.instance;
+  } catch (_) {}
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.example.focus_player.focus_tmp.music',
+      androidNotificationChannelName: 'Lecture musique',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ).timeout(const Duration(seconds: 8));
+  } catch (e) {
+    gAudioErreur = 'Audio arrière-plan indisponible : $e';
+    try {
+      JustAudioPlatform.instance = plateformeAvant!;
+    } catch (_) {}
+  }
+  audioErreur = gAudioErreur;
   runApp(const FocusPlayer());
 }
 
@@ -181,7 +202,21 @@ class _HomePageState extends State<HomePage> {
   Future<void> _jouer(SongModel s) async {
     try {
       await _player.setAudioSource(
-        AudioSource.uri(Uri.file(s.data)),
+        AudioSource.uri(
+          Uri.file(s.data),
+          tag: MediaItem(
+            id: s.id.toString(),
+            title: s.title,
+            artist: s.artist ?? 'Inconnue',
+            album: s.album,
+            duration: (s.duration ?? 0) > 0
+                ? Duration(milliseconds: s.duration ?? 0)
+                : null,
+            artUri: (s.albumId ?? 0) > 0
+                ? Uri.parse('content://media/external/audio/albumart/${s.albumId}')
+                : null,
+          ),
+        ),
       );
     } catch (e) {
       _montrerErreur('Lecture impossible', e);

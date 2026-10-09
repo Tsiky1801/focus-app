@@ -20,6 +20,16 @@ jobs:
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
+          # audio_service exige que MainActivity étende AudioServiceActivity (liaison service ↔ moteur Flutter)
+          MF=$(find focus_tmp/android/app/src/main/kotlin -name MainActivity.kt | head -1)
+          echo "=== MainActivity avant patch ==="
+          cat "$MF"
+          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MF"
+          sed -i 's/: FlutterActivity()/: AudioServiceActivity()/' "$MF"
+          sed -i 's/extends FlutterActivity/extends AudioServiceActivity/' "$MF"
+          echo "=== MainActivity après patch ==="
+          cat "$MF"
+          grep -q ": AudioServiceActivity()" "$MF" || grep -q "extends AudioServiceActivity" "$MF"
           cd focus_tmp && flutter pub get
           PLUGIN=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "on_audio_query_android-*" | head -1)/android/build.gradle
           if [ -f "$PLUGIN" ]; then
