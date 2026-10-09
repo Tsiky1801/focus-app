@@ -20,6 +20,16 @@ jobs:
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
+          # audio_service exige que MainActivity étende AudioServiceActivity (liaison service ↔ moteur Flutter)
+          MF=$(find focus_tmp/android/app/src/main/kotlin -name MainActivity.kt | head -1)
+          echo "=== MainActivity avant patch ==="
+          cat "$MF"
+          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MF"
+          sed -i 's/: FlutterActivity()/: AudioServiceActivity()/' "$MF"
+          sed -i 's/extends FlutterActivity/extends AudioServiceActivity/' "$MF"
+          echo "=== MainActivity après patch ==="
+          cat "$MF"
+          grep -q ": AudioServiceActivity()" "$MF" || grep -q "extends AudioServiceActivity" "$MF"
           cd focus_tmp && flutter pub get
           PLUGIN=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "on_audio_query_android-*" | head -1)/android/build.gradle
           if [ -f "$PLUGIN" ]; then
@@ -34,6 +44,21 @@ jobs:
             head -20 "$PLUGIN"
           fi
           flutter build apk --debug --split-per-abi
+          # Re-signe chaque APK avec le keystore stable du créateur (sinon chaque run a une clé différente)
+          APKDIR="$GITHUB_WORKSPACE/focus_tmp/build/app/outputs/flutter-apk"
+          KS="$GITHUB_WORKSPACE/focus-app/flutter/debug.keystore"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BT=$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)
+          for APK in "$APKDIR"/app-*-debug.apk; do
+            [ -f "$APK" ] || continue
+            "$BT/zipalign" -f 4 "$APK" "$APK".aligned
+            "$BT/apksigner" sign --ks "$KS" \
+              --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android \
+              --out "$APK" "$APK".aligned
+            rm -f "$APK".aligned
+            "$BT/apksigner" verify --print-certs "$APK"
+          done
+          ls -l "$APKDIR"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

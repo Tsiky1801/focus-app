@@ -697,7 +697,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               const Text('Focus Player',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-              Text('Créé par Tsiky · v1.3',
+              Text('Créé par Tsiky · v1.4',
                   style: TextStyle(fontSize: 12, color: widget.accent.withOpacity(.9))),
             ],
           ),
