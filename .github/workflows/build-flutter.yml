@@ -28,6 +28,8 @@ jobs:
             if [ -f "$PMANIFEST" ]; then
               sed -i 's/ package="com.lucasjosino.on_audio_query"//' "$PMANIFEST"
             fi
+            sed -i "s/compileSdkVersion 33/compileSdkVersion 34/" "$PLUGIN"
+            sed -i "s/compileSdkVersion 32/compileSdkVersion 34/" "$PLUGIN"
             echo "--- plugin patch ---"
             head -20 "$PLUGIN"
           fi
