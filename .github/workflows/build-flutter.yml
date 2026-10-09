@@ -16,52 +16,14 @@ jobs:
 
       - name: Create flutter project
         run: |
-          mkdir -p "$HOME/.android" && cp focus-app/flutter/debug.keystore "$HOME/.android/debug.keystore"
-          yes | sdkmanager "platforms;android-35" >/dev/null || true
           flutter create --org com.example.focus_player focus_tmp
           cp focus-app/flutter/pubspec.yaml focus_tmp/pubspec.yaml
           cp focus-app/flutter/lib/main.dart focus_tmp/lib/main.dart
           cp focus-app/flutter/AndroidManifest.xml focus_tmp/android/app/src/main/AndroidManifest.xml
-          # audio_service exige que MainActivity étende AudioServiceActivity (liaison service ↔ moteur Flutter)
-          MF=$(find focus_tmp/android/app/src/main/kotlin -name MainActivity.kt | head -1)
-          echo "=== MainActivity avant patch ==="
-          cat "$MF"
-          sed -i 's/import io.flutter.embedding.android.FlutterActivity/import com.ryanheise.audioservice.AudioServiceActivity/' "$MF"
-          sed -i 's/: FlutterActivity()/: AudioServiceActivity()/' "$MF"
-          sed -i 's/extends FlutterActivity/extends AudioServiceActivity/' "$MF"
-          echo "=== MainActivity après patch ==="
-          cat "$MF"
-          grep -q ": AudioServiceActivity()" "$MF" || grep -q "extends AudioServiceActivity" "$MF"
-          cd focus_tmp && flutter pub get
-          # AGP 8 (Flutter récent) exige "namespace" — corrige les vieux plugins qui n'en ont pas
-          find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 3 -type d -name android | while read -r d; do
-            g="$d/build.gradle"
-            [ -f "$g" ] || continue
-            grep -Eq '^[[:space:]]*namespace[[:space:]]' "$g" && continue
-            m="$d/src/main/AndroidManifest.xml"
-            [ -f "$m" ] || continue
-            NS=$(grep -o 'package="[^"]*"' "$m" | head -1 | sed 's/package="//;s/"//')
-            [ -z "$NS" ] && continue
-            sed -i "s/^android {/android {\n    namespace \"$NS\"\n    compileOptions {\n      sourceCompatibility JavaVersion.VERSION_17\n      targetCompatibility JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n      jvmTarget = '17'\n    }/" "$g"
-            sed -i 's/ package="[^"]*"//' "$m"
-            sed -i -E 's/compileSdkVersion[[:space:]]+[0-9]+/compileSdkVersion 35/' "$g"
-            echo "namespace ajouté: $NS → $g"
-          done
-          flutter build apk --debug
-          # Re-signe avec le keystore stable du créateur (sinon chaque run a une clé différente)
-          APK="$GITHUB_WORKSPACE/focus_tmp/build/app/outputs/flutter-apk/app-debug.apk"
-          KS="$GITHUB_WORKSPACE/focus-app/flutter/debug.keystore"
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          BT=$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)
-          "$BT/zipalign" -f 4 "$APK" "$APK".aligned
-          "$BT/apksigner" sign --ks "$KS" \
-            --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android \
-            --out "$APK" "$APK".aligned
-          rm -f "$APK".aligned
-          "$BT/apksigner" verify --print-certs "$APK"
+          cd focus_tmp && flutter pub get && flutter build apk --debug --split-per-abi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: focus-player
-          path: focus_tmp/build/app/outputs/flutter-apk/app-debug.apk
+          name: focus-player-arm64
+          path: focus_tmp/build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
